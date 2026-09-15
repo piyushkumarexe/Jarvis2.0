@@ -33,7 +33,15 @@ private val Navy=Color(0xFF070B14); private val Panel=Color(0xFF101827); private
 class MainActivity: ComponentActivity(){ override fun onCreate(b:Bundle?){super.onCreate(b);setContent{JarvisScreen()}} }
 @Composable fun JarvisScreen(vm:JarvisViewModel=viewModel()) { val context=LocalContext.current; val state by vm.state.collectAsState(); val transcript by vm.transcript.collectAsState(); val events by vm.events.collectAsState(); val pending by vm.pending.collectAsState(); var input by remember{mutableStateOf("")}; val mic=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()){ r-> val t=r.data?.getStringArrayListExtra("android.speech.extra.RESULTS")?.firstOrNull(); if(t!=null)vm.submit(t) }; val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){}
     MaterialTheme(colorScheme=darkColorScheme(background=Navy,surface=Panel,primary=Cyan)){ Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Navy,Color(0xFF11152A)))).padding(22.dp)){
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Column{Text("JARVIS",color=Cyan,fontSize=28.sp,fontWeight=FontWeight.Bold);Text("ANDROID INTELLIGENCE",color=Color.Gray,fontSize=10.sp,letterSpacing=2.sp)} IconButton(onClick={context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))}){Icon(Icons.Default.Settings,"Permissions",tint=Color.LightGray)}}
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
+            Column {
+                Text("JARVIS", color=Cyan, fontSize=28.sp, fontWeight=FontWeight.Bold)
+                Text("ANDROID INTELLIGENCE", color=Color.Gray, fontSize=10.sp, letterSpacing=2.sp)
+            }
+            IconButton(onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) {
+                Icon(Icons.Default.Settings, "Permissions", tint=Color.LightGray)
+            }
+        }
         Spacer(Modifier.height(22.dp)); Orb(state); Text(if(state==RunState.IDLE)"Ready for your command" else state.name.replace('_',' '),color=Color.White,fontSize=18.sp,fontWeight=FontWeight.Medium,modifier=Modifier.align(Alignment.CenterHorizontally)); Spacer(Modifier.height(18.dp))
         if(transcript.isNotBlank()) Card(colors=CardDefaults.cardColors(containerColor=Panel),shape=RoundedCornerShape(18.dp)){Text("“$transcript”",Modifier.padding(16.dp),color=Color.White)}
         Spacer(Modifier.height(12.dp)); Text("LIVE TASK",color=Color.Gray,fontSize=11.sp,letterSpacing=2.sp); events.forEach{e->Row(Modifier.padding(vertical=6.dp),verticalAlignment=Alignment.CenterVertically){Text(if(e.state==EventState.COMPLETE)"✓" else if(e.state==EventState.ACTIVE)"●" else "○",color=if(e.state==EventState.FAILED)Color.Red else Cyan,fontSize=18.sp);Text("  ${e.label}",color=Color.White)}}
