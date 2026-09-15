@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 class JarvisViewModel(app: Application) : AndroidViewModel(app), TextToSpeech.OnInitListener {
-    private val planner: AiPlanner = SafeCommandPlanner(); private var tts: TextToSpeech = TextToSpeech(app, this)
+    private val planner: AiPlanner = NvidiaPlanner(); private var tts: TextToSpeech = TextToSpeech(app, this)
     private val _state = MutableStateFlow(RunState.IDLE); val state: StateFlow<RunState> = _state
     private val _transcript = MutableStateFlow(""); val transcript: StateFlow<String> = _transcript
     private val _events = MutableStateFlow<List<TaskEvent>>(emptyList()); val events: StateFlow<List<TaskEvent>> = _events
