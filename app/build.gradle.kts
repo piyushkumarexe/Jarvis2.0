@@ -12,10 +12,9 @@ android { namespace = "ai.jarvis.assistant"; compileSdk = 35
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
-val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
 dependencies {
-    implementation(composeBom)
-    androidTestImplementation(composeBom)
+    implementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
