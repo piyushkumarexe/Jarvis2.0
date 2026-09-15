@@ -11,7 +11,7 @@ import java.net.URL
 /** NVIDIA's OpenAI-compatible endpoint. Falls back safely when no key is configured or the network fails. */
 class NvidiaPlanner(private val fallback: AiPlanner = SafeCommandPlanner()) : AiPlanner {
     override suspend fun plan(request: String): TaskPlan = withContext(Dispatchers.IO) {
-        if (BuildConfig.NVIDIA_API_KEY.isBlank()) return@withContext fallback.plan(request)
+        if (BuildConfig.NVIDIA_API_KEY.isBlank()) return@withContext enforceIntents(fallback.plan(request), request)
         try {
             val connection = (URL("${BuildConfig.NVIDIA_BASE_URL}/chat/completions").openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"; connectTimeout = 15_000; readTimeout = 45_000; doOutput = true
@@ -25,7 +25,7 @@ class NvidiaPlanner(private val fallback: AiPlanner = SafeCommandPlanner()) : Ai
             connection.outputStream.use { it.write(body.toString().toByteArray()) }
             if (connection.responseCode !in 200..299) return@withContext fallback.plan(request)
             val response = connection.inputStream.bufferedReader().use { it.readText() }
-            parsePlan(JSONObject(response).getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content"), request) ?: fallback.plan(request)
+            enforceIntents(parsePlan(JSONObject(response).getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content"), request) ?: fallback.plan(request), request)
         } catch (_: Exception) { fallback.plan(request) }
     }
 
@@ -35,6 +35,18 @@ class NvidiaPlanner(private val fallback: AiPlanner = SafeCommandPlanner()) : Ai
         for (i in 0 until array.length()) { val a=array.getJSONObject(i); val type=runCatching{ActionType.valueOf(a.getString("type").uppercase())}.getOrNull() ?: continue; actions += AgentAction(type,a.optString("value").takeIf{it.isNotBlank()},a.optString("target").takeIf{it.isNotBlank()},a.optBoolean("requiresConfirmation")) }
         if (actions.isEmpty()) null else TaskPlan(goal, actions + AgentAction(ActionType.FINISH))
     } catch (_: Exception) { null }
+
+    private fun enforceIntents(base: TaskPlan, request: String): TaskPlan {
+        val lower=request.lowercase(); val result=base.actions.filterNot { it.type==ActionType.FINISH }.toMutableList()
+        val app=when { "instagram" in lower || "insta" in lower -> "com.instagram.android"; "whatsapp" in lower -> "com.whatsapp"; "youtube" in lower -> "com.google.android.youtube"; "flipkart" in lower -> "com.flipkart.android"; "amazon" in lower -> "in.amazon.mShop.android.shopping"; else -> null }
+        if (app!=null && result.none { it.type==ActionType.OPEN_APP }) result.add(0,AgentAction(ActionType.OPEN_APP,app))
+        val searchMatch=Regex("(?:search|find|ढूंढ|खोज)\\s+(?:for\\s+)?(.+?)(?:(?:\\s+and\\s+play)|$)",RegexOption.IGNORE_CASE).find(request)
+        val query=searchMatch?.groupValues?.getOrNull(1)?.trim()?.trimEnd('.')
+        if (query!=null && query.isNotBlank() && result.none { it.type==ActionType.SEARCH }) result.add(AgentAction(ActionType.SEARCH,query))
+        if (("play" in lower || "चलाओ" in lower || "chalao" in lower) && result.none { it.type==ActionType.PLAY }) result.add(AgentAction(ActionType.PLAY,target="Play"))
+        if (("add to cart" in lower || "cart me" in lower || "कार्ट" in lower) && result.none { it.type==ActionType.ADD_TO_CART }) result.add(AgentAction(ActionType.ADD_TO_CART,target="Add to Cart"))
+        return TaskPlan(base.goal,result+AgentAction(ActionType.FINISH))
+    }
 
     companion object { private const val SYSTEM_PROMPT = """
 You are JARVIS, an Android UI agent. Understand English, Hindi and Hinglish. Return ONLY JSON: {\"actions\":[{\"type\":\"OPEN_APP|CLICK|TYPE_TEXT|SEARCH|SCROLL|BACK|READ_SCREEN|SELECT|PLAY|ADD_TO_CART|SEND_MESSAGE|CALL|WAIT|FINISH\",\"value\":\"...\",\"target\":\"...\",\"requiresConfirmation\":true|false}]}. Use semantic targets, never coordinates. Mark SEND_MESSAGE, CALL, purchases, deletion and public posting as requiresConfirmation true. Never request passwords, OTPs or security bypasses. If uncertain, use READ_SCREEN.

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -30,8 +31,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import ai.jarvis.assistant.agent.*
 
 private val Navy=Color(0xFF070B14); private val Panel=Color(0xFF101827); private val Cyan=Color(0xFF74F6D2); private val Violet=Color(0xFF8C7CFF)
+object WakeBridge { val commands=MutableSharedFlow<String>(replay=1, extraBufferCapacity=4) }
 class MainActivity: ComponentActivity(){ override fun onCreate(b:Bundle?){super.onCreate(b);setContent{JarvisScreen()}} }
 @Composable fun JarvisScreen(vm:JarvisViewModel=viewModel()) { val context=LocalContext.current; val state by vm.state.collectAsState(); val transcript by vm.transcript.collectAsState(); val events by vm.events.collectAsState(); val pending by vm.pending.collectAsState(); var input by remember{mutableStateOf("")}; val mic=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()){ r-> val t=r.data?.getStringArrayListExtra("android.speech.extra.RESULTS")?.firstOrNull(); if(t!=null)vm.submit(t) }; val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){ granted -> if(granted) context.startForegroundService(Intent(context, VoiceWakeService::class.java)) }
+    LaunchedEffect(Unit) { WakeBridge.commands.collect { command -> if(command.isBlank()) vm.beginListening(context) else vm.submit(command) } }
     MaterialTheme(colorScheme=darkColorScheme(background=Navy,surface=Panel,primary=Cyan)){ Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Navy,Color(0xFF11152A)))).padding(22.dp)){
         Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
             Column {
