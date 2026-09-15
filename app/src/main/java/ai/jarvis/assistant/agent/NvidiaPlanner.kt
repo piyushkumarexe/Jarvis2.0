@@ -11,7 +11,7 @@ import java.net.URL
 /** NVIDIA's OpenAI-compatible endpoint. Falls back safely when no key is configured or the network fails. */
 class NvidiaPlanner(private val fallback: AiPlanner = SafeCommandPlanner()) : AiPlanner {
     override suspend fun plan(request: String): TaskPlan = withContext(Dispatchers.IO) {
-        if (BuildConfig.NVIDIA_API_KEY.isBlank()) return@withContext enforceIntents(fallback.plan(request), request)
+        if (BuildConfig.NVIDIA_API_KEY.isBlank()) return@withContext enforceMessage(enforceIntents(fallback.plan(request), request), request)
         try {
             val connection = (URL("${BuildConfig.NVIDIA_BASE_URL}/chat/completions").openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"; connectTimeout = 15_000; readTimeout = 45_000; doOutput = true
@@ -25,7 +25,7 @@ class NvidiaPlanner(private val fallback: AiPlanner = SafeCommandPlanner()) : Ai
             connection.outputStream.use { it.write(body.toString().toByteArray()) }
             if (connection.responseCode !in 200..299) return@withContext fallback.plan(request)
             val response = connection.inputStream.bufferedReader().use { it.readText() }
-            enforceIntents(parsePlan(JSONObject(response).getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content"), request) ?: fallback.plan(request), request)
+            enforceMessage(enforceIntents(parsePlan(JSONObject(response).getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content"), request) ?: fallback.plan(request), request), request)
         } catch (_: Exception) { fallback.plan(request) }
     }
 
@@ -46,6 +46,14 @@ class NvidiaPlanner(private val fallback: AiPlanner = SafeCommandPlanner()) : Ai
         if (("play" in lower || "चलाओ" in lower || "chalao" in lower) && result.none { it.type==ActionType.PLAY }) result.add(AgentAction(ActionType.PLAY,target="Play"))
         if (("add to cart" in lower || "cart me" in lower || "कार्ट" in lower) && result.none { it.type==ActionType.ADD_TO_CART }) result.add(AgentAction(ActionType.ADD_TO_CART,target="Add to Cart"))
         return TaskPlan(base.goal,result+AgentAction(ActionType.FINISH))
+    }
+
+    private fun enforceMessage(base: TaskPlan, request: String): TaskPlan {
+        val lower=request.lowercase(); if (!(lower.contains("whatsapp") || lower.contains("message") || lower.contains("send"))) return base
+        val match=Regex("(?i)(?:send|message|text)\\s+(.+?)\\s+(?:to|ko)\\s+([A-Za-z][A-Za-z .]+)$").find(request) ?: return base
+        var body=match.groupValues[1].trim(); val target=match.groupValues[2].trim(); body=body.replace(Regex("(?i)\\s+message$"),"").trim()
+        if(body.isBlank() || target.isBlank()) return base
+        val result=base.actions.filterNot { it.type==ActionType.SEND_MESSAGE }.toMutableList(); result.add(AgentAction(ActionType.SEND_MESSAGE,body,target,true)); return TaskPlan(base.goal,result.filterNot { it.type==ActionType.FINISH }+AgentAction(ActionType.FINISH))
     }
 
     companion object { private const val SYSTEM_PROMPT = """
