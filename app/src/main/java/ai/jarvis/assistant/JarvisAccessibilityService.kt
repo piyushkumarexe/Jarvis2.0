@@ -29,5 +29,5 @@ class JarvisAccessibilityService : AccessibilityService() {
     fun scroll(forward: Boolean) = findScrollable(rootInActiveWindow)?.performAction(if (forward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) == true
     private fun findScrollable(n: AccessibilityNodeInfo?): AccessibilityNodeInfo? { if (n == null) return null; if (n.isScrollable) return n; for(i in 0 until n.childCount) findScrollable(n.getChild(i))?.let{return it}; return null }
     fun swipe(x1: Float,y1: Float,x2: Float,y2: Float): Boolean { val p=Path().apply{moveTo(x1,y1);lineTo(x2,y2)}; return dispatchGesture(GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(p,0,400)).build(),null,null) }
-    fun launch(packageName: String): Boolean = try { val intent = packageManager.getLaunchIntentForPackage(packageName) ?: return false; intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(intent); true } catch(_: Exception) { false }
+    fun launch(packageName: String): Boolean = try { val intent = packageManager.getLaunchIntentForPackage(packageName); if (intent == null) false else { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(intent); true } } catch(_: Exception) { false }
 }
