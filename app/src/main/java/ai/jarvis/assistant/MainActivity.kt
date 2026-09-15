@@ -41,7 +41,7 @@ class MainActivity: ComponentActivity(){ override fun onCreate(b:Bundle?){super.
                 Text("JARVIS", color=Cyan, fontSize=28.sp, fontWeight=FontWeight.Bold)
                 Text("ANDROID INTELLIGENCE", color=Color.Gray, fontSize=10.sp, letterSpacing=2.sp)
             }
-            IconButton(onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) {
+            IconButton(onClick = { context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))) }) {
                 Icon(Icons.Default.Settings, "Permissions", tint=Color.LightGray)
             }
         }
