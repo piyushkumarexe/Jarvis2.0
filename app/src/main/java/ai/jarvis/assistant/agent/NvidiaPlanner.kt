@@ -39,11 +39,11 @@ class NvidiaPlanner(private val fallback: AiPlanner = SafeCommandPlanner()) : Ai
     private fun enforceIntents(base: TaskPlan, request: String): TaskPlan {
         val lower=request.lowercase(); val result=base.actions.filterNot { it.type==ActionType.FINISH }.toMutableList()
         val app=when { "instagram" in lower || "insta" in lower -> "com.instagram.android"; "whatsapp" in lower -> "com.whatsapp"; "youtube" in lower -> "com.google.android.youtube"; "flipkart" in lower -> "com.flipkart.android"; "amazon" in lower -> "in.amazon.mShop.android.shopping"; "play store" in lower || "playstore" in lower -> "com.android.vending"; else -> null }
-        if (app!=null && result.none { it.type==ActionType.OPEN_APP }) result.add(0,AgentAction(ActionType.OPEN_APP,app))
+        if (app!=null) { result.removeAll { it.type==ActionType.OPEN_APP }; result.add(0,AgentAction(ActionType.OPEN_APP,app)) }
         val searchMatch=Regex("(?:search|find|ढूंढ|खोज)\\s+(?:for\\s+)?(.+?)(?:(?:\\s+and\\s+play)|$)",RegexOption.IGNORE_CASE).find(request)
         val query=searchMatch?.groupValues?.getOrNull(1)?.trim()?.trimEnd('.') ?: Regex("(?i)install\\s+(.+?)\\s*$").find(request)?.groupValues?.getOrNull(1)?.trim()
-        if (query!=null && query.isNotBlank() && result.none { it.type==ActionType.SEARCH }) result.add(AgentAction(ActionType.SEARCH,query))
-        if ((("play" in lower && "play store" !in lower) || "चलाओ" in lower || "chalao" in lower) && result.none { it.type==ActionType.PLAY }) result.add(AgentAction(ActionType.PLAY,target="Play"))
+        if (query!=null && query.isNotBlank()) { result.removeAll { it.type==ActionType.SEARCH }; result.add(AgentAction(ActionType.SEARCH,query)) }
+        if ((("play" in lower && "play store" !in lower) || "चलाओ" in lower || "chalao" in lower)) { result.removeAll { it.type==ActionType.PLAY }; result.add(AgentAction(ActionType.PLAY,target="Play")) }
         if (("add to cart" in lower || "cart me" in lower || "कार्ट" in lower) && result.none { it.type==ActionType.ADD_TO_CART }) result.add(AgentAction(ActionType.ADD_TO_CART,target="Add to Cart"))
         if ("install" in lower && result.none { it.type==ActionType.INSTALL_APP }) result.add(AgentAction(ActionType.INSTALL_APP, query, "Install", true))
         return TaskPlan(base.goal,result+AgentAction(ActionType.FINISH))
