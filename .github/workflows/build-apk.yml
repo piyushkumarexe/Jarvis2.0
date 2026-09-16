@@ -36,7 +36,11 @@ jobs:
           JARVIS_KEYSTORE_BASE64: ${{ secrets.JARVIS_KEYSTORE_BASE64 }}
         run: |
           if [ -n "$JARVIS_KEYSTORE_BASE64" ]; then
-            echo "$JARVIS_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/jarvis-release.p12"
+            CLEAN=$(printf '%s' "$JARVIS_KEYSTORE_BASE64" | tr -d '\r\n ' | sed 's/^JARVIS_KEYSTORE_BASE64=//')
+            if ! printf '%s' "$CLEAN" | base64 --decode > "$RUNNER_TEMP/jarvis-release.p12"; then
+              echo 'Signing secret could not be decoded; building with runner debug key.'
+              rm -f "$RUNNER_TEMP/jarvis-release.p12"
+            fi
           fi
       - name: Build debug APK
         env:
