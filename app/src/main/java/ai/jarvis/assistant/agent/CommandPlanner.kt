@@ -1,10 +1,10 @@
 package ai.jarvis.assistant.agent
 
 /** Provider boundary: replace this implementation with a local model or an authenticated backend. */
-interface AiPlanner { suspend fun plan(request: String): TaskPlan }
+interface AiPlanner { suspend fun plan(request: String, observation: Observation? = null): TaskPlan }
 
 class SafeCommandPlanner : AiPlanner {
-    override suspend fun plan(request: String): TaskPlan {
+    override suspend fun plan(request: String, observation: Observation?): TaskPlan {
         val raw = request.trim(); val lower = raw.lowercase()
         val app = when { "instagram" in lower || "insta" in lower -> "com.instagram.android"; "whatsapp" in lower -> "com.whatsapp"; "youtube" in lower -> "com.google.android.youtube"; "chrome" in lower -> "com.android.chrome"; "maps" in lower -> "com.google.android.apps.maps"; "settings" in lower -> "com.android.settings"; else -> null }
         val actions = mutableListOf<AgentAction>()

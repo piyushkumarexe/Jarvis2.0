@@ -10,7 +10,7 @@ import java.net.URL
 
 /** NVIDIA's OpenAI-compatible endpoint. Falls back safely when no key is configured or the network fails. */
 class NvidiaPlanner(private val fallback: AiPlanner = SafeCommandPlanner()) : AiPlanner {
-    override suspend fun plan(request: String): TaskPlan = withContext(Dispatchers.IO) {
+    override suspend fun plan(request: String, observation: Observation?): TaskPlan = withContext(Dispatchers.IO) {
         if (BuildConfig.NVIDIA_API_KEY.isBlank()) return@withContext enforceMessage(enforceIntents(fallback.plan(request), request), request)
         try {
             val connection = (URL("${BuildConfig.NVIDIA_BASE_URL}/chat/completions").openConnection() as HttpURLConnection).apply {
@@ -20,7 +20,8 @@ class NvidiaPlanner(private val fallback: AiPlanner = SafeCommandPlanner()) : Ai
             }
             val body = JSONObject().apply {
                 put("model", BuildConfig.NVIDIA_MODEL); put("temperature", 0.1); put("max_tokens", 1200)
-                put("messages", JSONArray().put(JSONObject().put("role", "system").put("content", SYSTEM_PROMPT)).put(JSONObject().put("role", "user").put("content", request)))
+                val ui=observation?.nodes?.take(180)?.joinToString("\n") { listOfNotNull(it.text,it.description,it.resourceId).joinToString(" | ") }.take(12000)
+                put("messages", JSONArray().put(JSONObject().put("role", "system").put("content", SYSTEM_PROMPT)).put(JSONObject().put("role", "user").put("content", "USER TASK:\n$request\n\nCURRENT ACCESSIBILITY UI (semantic, not coordinates):\n$ui")))
             }
             connection.outputStream.use { it.write(body.toString().toByteArray()) }
             if (connection.responseCode !in 200..299) return@withContext enforceMessage(enforceIntents(fallback.plan(request), request), request)
