@@ -20,7 +20,7 @@ class NvidiaPlanner(private val fallback: AiPlanner = SafeCommandPlanner()) : Ai
             }
             val body = JSONObject().apply {
                 put("model", BuildConfig.NVIDIA_MODEL); put("temperature", 0.1); put("max_tokens", 1200)
-                val ui=observation?.nodes?.take(180)?.joinToString("\n") { listOfNotNull(it.text,it.description,it.resourceId).joinToString(" | ") }.take(12000)
+                val ui=observation?.nodes?.take(180)?.joinToString("\n") { listOfNotNull(it.text,it.description,it.resourceId).joinToString(" | ") }.orEmpty().take(12000)
                 put("messages", JSONArray().put(JSONObject().put("role", "system").put("content", SYSTEM_PROMPT)).put(JSONObject().put("role", "user").put("content", "USER TASK:\n$request\n\nCURRENT ACCESSIBILITY UI (semantic, not coordinates):\n$ui")))
             }
             connection.outputStream.use { it.write(body.toString().toByteArray()) }
